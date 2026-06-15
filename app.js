@@ -1,31 +1,31 @@
 /* ===== Acopio demo — shared data + state (localStorage) ===== */
 
 const CENTERS = [
-  { id: 'sm',  name: 'San Miguel',     city: 'Quelepa, San Miguel',        emoji: '🏭' },
-  { id: 'ss',  name: 'San Salvador',   city: 'Soyapango, San Salvador',    emoji: '🏙️' },
-  { id: 'sa',  name: 'Santa Ana',      city: 'Santa Ana Centro',           emoji: '🏬' },
-  { id: 'la',  name: 'La Libertad',    city: 'Santa Tecla, La Libertad',   emoji: '🏗️' },
-  { id: 'us',  name: 'Usulután',       city: 'Usulután Sur',               emoji: '📦' },
-  { id: 'so',  name: 'Sonsonate',      city: 'Sonsonate Industrial',       emoji: '🚚' },
-  { id: 'ah',  name: 'Ahuachapán',     city: 'Ahuachapán Norte',           emoji: '🏭' },
-  { id: 'mo',  name: 'Morazán',        city: 'San Francisco Gotera',       emoji: '📦' },
-  { id: 'lu',  name: 'La Unión',       city: 'La Unión Puerto',            emoji: '⚓' },
-  { id: 'ch',  name: 'Chalatenango',   city: 'Chalatenango Centro',        emoji: '🏔️' },
+  { id: 'sm',  name: 'San Miguel',     city: 'Quelepa, San Miguel',        icon: 'SM' },
+  { id: 'ss',  name: 'San Salvador',   city: 'Soyapango, San Salvador',    icon: 'SS' },
+  { id: 'sa',  name: 'Santa Ana',      city: 'Santa Ana Centro',           icon: 'SA' },
+  { id: 'la',  name: 'La Libertad',    city: 'Santa Tecla, La Libertad',   icon: 'LL' },
+  { id: 'us',  name: 'Usulután',       city: 'Usulután Sur',               icon: 'US' },
+  { id: 'so',  name: 'Sonsonate',      city: 'Sonsonate Industrial',       icon: 'SO' },
+  { id: 'ah',  name: 'Ahuachapán',     city: 'Ahuachapán Norte',           icon: 'SM' },
+  { id: 'mo',  name: 'Morazán',        city: 'San Francisco Gotera',       icon: 'MO' },
+  { id: 'lu',  name: 'La Unión',       city: 'La Unión Puerto',            icon: 'LU' },
+  { id: 'ch',  name: 'Chalatenango',   city: 'Chalatenango Centro',        icon: 'CH' },
 ];
 
 const CATALOG = [
-  { sku:'CBL-100', name:'THHN Copper Wire #12',  cat:'Cable & Wire', unit:'per 100m roll', price:142.00, emoji:'🔌' },
-  { sku:'CBL-220', name:'Aluminum Cable 8000 #2', cat:'Cable & Wire', unit:'per 100m roll', price:268.00, emoji:'🔋' },
-  { sku:'CND-050', name:'PVC Conduit 1/2"',       cat:'Conduit',      unit:'per 10 units',  price:34.50,  emoji:'⚙️' },
-  { sku:'CND-075', name:'EMT Conduit 3/4"',       cat:'Conduit',      unit:'per 10 units',  price:58.00,  emoji:'🔧' },
-  { sku:'BRK-020', name:'Circuit Breaker 20A',    cat:'Components',   unit:'each',          price:11.75,  emoji:'🔘' },
-  { sku:'PNL-012', name:'Load Center Panel 12-ckt',cat:'Components',  unit:'each',          price:89.00,  emoji:'🗄️' },
-  { sku:'CON-001', name:'Connector Kit (assorted)',cat:'Hardware',   unit:'per box',       price:46.00,  emoji:'🧰' },
-  { sku:'TPE-330', name:'Insulation Tape',        cat:'Hardware',     unit:'per 10 rolls',  price:18.25,  emoji:'🎞️' },
-  { sku:'GLV-008', name:'Work Gloves',            cat:'Safety',       unit:'per dozen',     price:27.00,  emoji:'🧤' },
-  { sku:'HLM-004', name:'Safety Helmet',          cat:'Safety',       unit:'each',          price:14.50,  emoji:'⛑️' },
-  { sku:'STR-150', name:'Cable Ties 150mm',       cat:'Hardware',     unit:'per 1000',      price:22.00,  emoji:'🔗' },
-  { sku:'MTR-001', name:'Digital Multimeter',     cat:'Tools',        unit:'each',          price:63.00,  emoji:'📟' },
+  { sku:'CBL-100', name:'THHN Copper Wire #12',  cat:'Cable & Wire', unit:'per 100m roll', price:142.00, icon:'CBL' },
+  { sku:'CBL-220', name:'Aluminum Cable 8000 #2', cat:'Cable & Wire', unit:'per 100m roll', price:268.00, icon:'AL' },
+  { sku:'CND-050', name:'PVC Conduit 1/2"',       cat:'Conduit',      unit:'per 10 units',  price:34.50,  icon:'PVC' },
+  { sku:'CND-075', name:'EMT Conduit 3/4"',       cat:'Conduit',      unit:'per 10 units',  price:58.00,  icon:'EMT' },
+  { sku:'BRK-020', name:'Circuit Breaker 20A',    cat:'Components',   unit:'each',          price:11.75,  icon:'20A' },
+  { sku:'PNL-012', name:'Load Center Panel 12-ckt',cat:'Components',  unit:'each',          price:89.00,  icon:'PNL' },
+  { sku:'CON-001', name:'Connector Kit (assorted)',cat:'Hardware',   unit:'per box',       price:46.00,  icon:'KIT' },
+  { sku:'TPE-330', name:'Insulation Tape',        cat:'Hardware',     unit:'per 10 rolls',  price:18.25,  icon:'TPE' },
+  { sku:'GLV-008', name:'Work Gloves',            cat:'Safety',       unit:'per dozen',     price:27.00,  icon:'PPE' },
+  { sku:'HLM-004', name:'Safety Helmet',          cat:'Safety',       unit:'each',          price:14.50,  icon:'HLM' },
+  { sku:'STR-150', name:'Cable Ties 150mm',       cat:'Hardware',     unit:'per 1000',      price:22.00,  icon:'TIE' },
+  { sku:'MTR-001', name:'Digital Multimeter',     cat:'Tools',        unit:'each',          price:63.00,  icon:'MTR' },
 ];
 
 const DEPOSIT_RATE = 0.30; // 30% down

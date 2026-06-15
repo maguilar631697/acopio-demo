@@ -171,3 +171,59 @@ h1.hero{font-family:'Sora';font-weight:800;font-size:clamp(38px,8.2vw,82px);line
   .steps .st span:not(.n){display:none}        /* numbers-only steps on tiny screens */
   .steps .st{padding:6px}
 }
+
+/* ===== Elegance + mobile refinement pass ===== */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background:linear-gradient(180deg,rgba(255,255,255,.03),transparent 38%),
+             radial-gradient(800px 420px at 50% 0%,rgba(255,255,255,.07),transparent 60%);
+}
+.nav{padding-top:max(14px,env(safe-area-inset-top));}
+.logo .dot,.card .ic{
+  font-family:'Sora',sans-serif;letter-spacing:-.04em;
+}
+.card .ic{
+  font-size:14px;font-weight:800;color:#070810;background:var(--grad);border:0;box-shadow:0 16px 30px -22px rgba(63,224,197,.9)
+}
+.card{box-shadow:0 18px 60px -48px rgba(0,0,0,.9)}
+.card.pick:hover,.card.pick:focus-within{box-shadow:0 28px 80px -52px rgba(63,224,197,.45)}
+.panel,.pay-card,.info-box{box-shadow:0 24px 80px -58px rgba(0,0,0,.92)}
+input,button,a{ -webkit-tap-highlight-color: transparent; }
+button,.btn,.card.pick{min-height:44px}
+.field input,.field select{min-height:52px}
+.nav-links a{min-height:40px;display:inline-flex;align-items:center;justify-content:center}
+
+@media(max-width:720px){
+  .nav{align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .nav-links{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .nav-links a{background:var(--panel);border:1px solid var(--border);padding:11px 10px;width:100%}
+  .nav-links a.pill{background:linear-gradient(118deg,rgba(63,224,197,.18),rgba(106,155,255,.14));border-color:rgba(63,224,197,.28);color:#fff}
+  .screen{min-height:auto;padding-top:clamp(24px,6vw,38px)}
+  .center-screen{justify-content:flex-start}
+  .grid.centers,.grid.products{grid-template-columns:1fr}
+  .card{padding:20px;border-radius:20px}
+  .card.pick{display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center}
+  .card.pick .ic{margin-bottom:0;grid-row:1 / span 2}
+  .card.pick h3{margin-bottom:2px}
+  .panel{padding:20px;border-radius:20px}
+  .layout{gap:18px}
+  .steps{position:relative;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;margin-inline:-2px;scrollbar-width:none}
+  .steps::-webkit-scrollbar{display:none}
+  .steps .st{white-space:nowrap;flex:0 0 auto}
+  .pay-wrap,.confirm{padding-inline:0}
+  .pay-amt{font-size:46px}
+  .info-box .ir{align-items:flex-start}
+  .foot{padding-bottom:max(24px,env(safe-area-inset-bottom))}
+}
+
+@media(max-width:430px){
+  .wrap{padding-left:16px;padding-right:16px}
+  .nav{padding-left:16px;padding-right:16px}
+  h1.hero{font-size:40px;letter-spacing:-1.4px}
+  .lead{font-size:15.5px}
+  .kicker{letter-spacing:1.2px;padding:7px 12px}
+  .sec-head h2{font-size:28px}
+  .line{font-size:13px;gap:8px}
+  .line .amt{font-size:13px}
+  .totals .row.big{font-size:19px}
+}
