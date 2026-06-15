@@ -100,7 +100,7 @@ function stepsBar(active){
 /* ---------- center select ---------- */
 function renderCenters(){
   document.getElementById('centerGrid').innerHTML = CENTERS.map(c=>`
-    <div class="card ${S.center===c.id?'selected':''}" onclick="pickCenter('${c.id}')">
+    <div class="card pick ${S.center===c.id?'selected':''}" onclick="pickCenter('${c.id}')">
       <div class="ic">${c.emoji}</div>
       <h3>${c.name}</h3>
       <div class="meta">${c.city}</div>
