@@ -255,3 +255,92 @@ button,.btn,.card.pick{min-height:44px}
 .card.skel{min-height:230px;border-style:dashed;background:linear-gradient(100deg,var(--panel) 30%,var(--panel-2) 50%,var(--panel) 70%);background-size:220% 100%;animation:skel 1.1s ease-in-out infinite}
 @keyframes skel{0%{background-position:120% 0}100%{background-position:-120% 0}}
 .link{background:none;border:none;color:var(--brand);font:inherit;font-weight:700;cursor:pointer;text-decoration:underline;padding:0}
+
+/* ===================== Payments (deposit page) ===================== */
+.pay-methods{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 22px}
+.pm{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border-radius:13px;background:var(--panel);border:1px solid var(--border);color:var(--mid);font-weight:700;font-size:14px;cursor:pointer;transition:.16s;font-family:inherit}
+.pm:hover{border-color:var(--border-2);color:#fff}
+.pm.on{border-color:var(--brand);background:rgba(63,224,197,.07);color:#fff;box-shadow:inset 0 0 0 1px var(--brand)}
+.pm-ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:15px;background:var(--panel-2);border:1px solid var(--border)}
+.pm.on .pm-ic{background:var(--grad);color:#070810;border:none}
+.pm-panel{animation:fade .3s ease}
+.pay-inst{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:18px;font-size:14px;color:var(--mid);line-height:1.55}
+.pay-inst p{margin:0 0 10px}
+.pay-acct{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)}
+.pay-acct:last-of-type{border-bottom:none}
+.pay-acct .k{color:var(--dim);font-size:13px}
+.pay-acct .v{font-weight:700;font-family:'Sora';color:#fff;text-align:right;word-break:break-all}
+.pay-hint{margin:12px 0 0!important;font-size:13px;color:var(--dim)}
+.req{font-size:11px;color:var(--warn);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-left:6px}
+.field input.err{border-color:var(--danger);background:rgba(251,113,133,.07)}
+.check.pending{background:rgba(245,196,81,.13);border-color:rgba(245,196,81,.34)}
+.tag.await{color:var(--warn);background:rgba(245,196,81,.14)}
+
+/* ===================== Admin / order management ===================== */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(10px,2vw,16px);margin-bottom:clamp(20px,3vw,26px)}
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:clamp(16px,3vw,20px)}
+.stat .sv{font-family:'Sora';font-size:clamp(22px,4.4vw,30px);font-weight:800;letter-spacing:-1px;line-height:1}
+.stat .sk{color:var(--mid);font-size:13px;margin-top:7px;font-weight:600}
+.stat.ok .sv{color:var(--ok)} .stat.warn .sv{color:var(--warn)} .stat.brand .sv{color:var(--brand-2)}
+
+.admin-toolbar{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:10px;margin-bottom:18px}
+.admin-toolbar .search{grid-column:auto}
+.admin-toolbar select{padding:13px 14px;background:var(--panel-2);border:1px solid var(--border);border-radius:12px;color:#fff;font-size:14px;font-family:inherit;cursor:pointer;transition:.16s}
+.admin-toolbar select:focus{outline:none;border-color:var(--brand)}
+
+.otable-head{display:grid;grid-template-columns:1.1fr 1.4fr 1.2fr .8fr 1.3fr .9fr;gap:12px;padding:0 18px 10px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--dim);font-weight:700}
+.ta-r{text-align:right}
+#ordersList{display:flex;flex-direction:column;gap:8px}
+#ordersList.loading{opacity:.7}
+.orow{display:grid;grid-template-columns:1.1fr 1.4fr 1.2fr .8fr 1.3fr .9fr;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:14px 18px;cursor:pointer;transition:.15s}
+.orow:hover{border-color:var(--border-2);background:var(--panel-2);transform:translateY(-1px)}
+.orow.skel{min-height:54px;border-style:dashed;background:linear-gradient(100deg,var(--panel) 30%,var(--panel-2) 50%,var(--panel) 70%);background-size:220% 100%;animation:skel 1.1s ease-in-out infinite;display:block}
+.oc{display:flex;flex-direction:column;gap:2px;min-width:0}
+.oc b{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oc small{font-size:12px;color:var(--dim)}
+.oc-amt{align-items:flex-end}
+.oc-amt b{font-family:'Sora'}
+
+.mchip{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.4px;padding:5px 10px;border-radius:8px;border:1px solid var(--border)}
+.m-card{color:#cbd5ff;background:rgba(106,155,255,.12)}
+.m-venmo{color:#7fb6ff;background:rgba(63,140,255,.14)}
+.m-zelle{color:#c39bff;background:rgba(182,157,255,.15)}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(4,5,12,.72);backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding:clamp(14px,4vw,48px);overflow-y:auto}
+.modal-card{background:#0d0f1c;border:1px solid var(--border-2);border-radius:20px;padding:clamp(20px,4vw,30px);max-width:560px;width:100%;box-shadow:0 50px 120px -40px rgba(0,0,0,.9);animation:fade .25s ease}
+.modal-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.mt-id{font-family:'Sora';font-size:26px;font-weight:800;letter-spacing:.5px}
+.mt-sub{color:var(--mid);font-size:14px;margin-top:3px}
+.modal-x{background:var(--panel);border:1px solid var(--border);color:var(--mid);width:38px;height:38px;border-radius:10px;font-size:16px;cursor:pointer;flex-shrink:0;transition:.15s}
+.modal-x:hover{color:#fff;background:var(--panel-2)}
+.mt-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.mt-label{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--dim);font-weight:700;margin:18px 0 10px}
+.mt-items{display:flex;flex-direction:column;gap:2px}
+.pay-detail{border:1px solid var(--border);border-radius:14px;padding:16px 18px}
+.pay-detail.awaiting{border-color:rgba(245,196,81,.34);background:rgba(245,196,81,.05)}
+.pay-detail.ok{border-color:rgba(52,211,153,.26);background:rgba(52,211,153,.04)}
+.pd-head{font-weight:700;font-size:15px;margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pay-detail .ir{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}
+.pay-detail .ir:last-child{border-bottom:none}
+.pay-detail .ir .k{color:var(--mid)} .pay-detail .ir .v{font-weight:600;text-align:right;word-break:break-word}
+.pay-detail .v.note{color:var(--warn);font-weight:700}
+.confirm-banner{font-size:13px;color:var(--mid);background:rgba(245,196,81,.08);border:1px solid rgba(245,196,81,.25);border-radius:11px;padding:11px 14px;margin-bottom:12px;line-height:1.5}
+.mt-actions{margin-top:18px}
+
+@media (max-width:760px){
+  .stats{grid-template-columns:1fr 1fr}
+  .admin-toolbar{grid-template-columns:1fr 1fr}
+  .admin-toolbar .search{grid-column:1/-1}
+  .otable-head{display:none}
+  .orow{grid-template-columns:1fr auto;gap:6px 12px;padding:14px 16px}
+  .oc-id{order:1} .oc-status{order:2;align-items:flex-end}
+  .oc-cust{order:3} .oc-pay{order:4;align-items:flex-end;flex-direction:row;justify-content:flex-end}
+  .oc-center{order:5} .oc-amt{order:6}
+  .oc-center small,.oc-id small{display:inline}
+}
+@media (max-width:430px){
+  .pay-methods{gap:6px}
+  .pm{padding:11px 4px;font-size:13px}
+  .stat .sv{font-size:22px}
+}

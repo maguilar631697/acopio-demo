@@ -136,3 +136,111 @@ function findOrder(id){
   let list=[]; try{ list=JSON.parse(localStorage.getItem(ORDERS))||[] }catch(e){}
   return list.find(o=> (o.orderId||'').toUpperCase()===(id||'').toUpperCase());
 }
+
+/* ===== Payment methods ===== */
+const PAY_ACCOUNTS = {
+  venmo: { handle: '@Acopio-SV',        label: 'Venmo' },
+  zelle: { email: 'pagos@acopio.sv', phone: '+503 2222-1000', name: 'Acopio Distribución S.A. de C.V.', label: 'Zelle' }
+};
+const PAY_LABEL = { card:'Card', venmo:'Venmo', zelle:'Zelle' };
+
+/* Canonical order status used by the admin console + filters.
+ * - awaiting : a Zelle payment was submitted but staff hasn't confirmed it
+ * - reserved : deposit settled, waiting for pickup
+ * - picked_up: collected and balance paid */
+function orderStatus(o){
+  if(o && o.payment && o.payment.method==='zelle' && o.payment.status==='pending') return 'awaiting';
+  if(o && o.pickedUp) return 'picked_up';
+  return 'reserved';
+}
+const STATUS_META = {
+  awaiting:  { label:'Awaiting confirmation', cls:'await' },
+  reserved:  { label:'Reserved',              cls:'due'   },
+  picked_up: { label:'Picked up',             cls:'picked'}
+};
+
+/* ===== Mock orders API (server-side filtering, like ProductAPI) =====
+ *   GET /orders?q=&status=&center=&method=&page=  ->  { items, total, page, pages }
+ * Swap _all()/save for real fetch() calls and the admin UI is unchanged. */
+const OrdersAPI = (function(){
+  function latency(){ return 120 + Math.floor(Math.random()*200); }
+  function _all(){ let l=[]; try{ l=JSON.parse(localStorage.getItem(ORDERS))||[] }catch(e){} return l; }
+  return {
+    list({ q='', status='all', center='all', method='all', page=1, pageSize=8 } = {}){
+      return new Promise(resolve => setTimeout(() => {
+        const needle = String(q).trim().toLowerCase();
+        const rows = _all().filter(o => {
+          if(status!=='all' && orderStatus(o)!==status) return false;
+          if(center!=='all' && o.center.id!==center) return false;
+          if(method!=='all' && ((o.payment&&o.payment.method)||'card')!==method) return false;
+          if(!needle) return true;
+          return (o.orderId+' '+o.customer.name+' '+(o.customer.phone||'')).toLowerCase().includes(needle);
+        }).sort((a,b) => (b.placed||'').localeCompare(a.placed||'') || b.orderId.localeCompare(a.orderId));
+        const total = rows.length;
+        const pages = Math.max(1, Math.ceil(total/pageSize));
+        const safe  = Math.min(Math.max(1,page), pages);
+        const start = (safe-1)*pageSize;
+        resolve({ items: rows.slice(start, start+pageSize), total, page:safe, pages, pageSize });
+      }, latency()));
+    },
+    stats(){
+      const l=_all();
+      return {
+        orders: l.length,
+        // revenue recognized = deposits actually settled (card/venmo paid + confirmed zelle)
+        revenue: l.reduce((t,o)=> t + (o.depositPaid ? (o.deposit||0) : 0), 0),
+        awaiting: l.filter(o=> orderStatus(o)==='awaiting').length,
+        pickedUp: l.filter(o=> o.pickedUp).length
+      };
+    },
+    confirmZelle(id){
+      const o=findOrder(id);
+      if(o && o.payment && o.payment.method==='zelle'){
+        o.payment.status='confirmed';
+        o.payment.confirmedAt=new Date().toISOString();
+        o.depositPaid=true;
+        saveOrder(o);
+      }
+      return o;
+    },
+    markPicked(id){ const o=findOrder(id); if(o){ o.pickedUp=true; saveOrder(o); } return o; }
+  };
+})();
+
+/* ===== Example orders so the admin console has data to visualize ===== */
+function sampleOrders(){
+  const mk = (id, centerId, name, phone, placed, pairs, payment, pickedUp) => {
+    const c = CENTERS.find(x=>x.id===centerId) || {};
+    const items = pairs.map(([sku,qty]) => { const p=CATALOG.find(x=>x.sku===sku); return { ...p, qty }; });
+    const sub = items.reduce((t,i)=> t + i.price*i.qty, 0);
+    const dep = depositOf(sub);
+    const paid = payment.status==='paid' || payment.status==='confirmed';
+    return { orderId:id, center:{ id:c.id, name:c.name, city:c.city }, items,
+      customer:{ name, phone }, subtotal:sub, deposit:dep, balance:sub-dep,
+      depositPaid:paid, pickedUp:!!pickedUp, placed, payment };
+  };
+  return [
+    mk('ACO-1042','sm','Carlos Menjívar','+503 7012-4488','2026-06-15',[['CBL-100',3],['CND-075',2],['BRK-020',10]],{ method:'card', status:'paid', last4:'4242', paidAt:'2026-06-15T14:20:00' },false),
+    mk('ACO-1043','ss','María Elena Portillo','+503 7755-2210','2026-06-15',[['CBL-220',4],['CON-001',3]],{ method:'zelle', status:'pending', reference:'BAC-8842197', note:'Depósito pedido ACO-1043', payerHandle:'maria.portillo@gmail.com', submittedAt:'2026-06-15T15:02:00' },false),
+    mk('ACO-1044','sa','Roberto Cáceres','+503 7088-1190','2026-06-14',[['PNL-012',2],['BRK-020',24],['CON-001',2]],{ method:'card', status:'paid', last4:'1881', paidAt:'2026-06-14T10:11:00' },true),
+    mk('ACO-1045','la','Ana Sofía Rivas','+503 7234-5567','2026-06-14',[['GLV-008',5],['HLM-004',5],['TPE-330',8]],{ method:'venmo', status:'paid', payerHandle:'@anasofia-rivas', paidAt:'2026-06-14T16:40:00' },false),
+    mk('ACO-1046','us','José Antonio Mejía','+503 7900-3321','2026-06-14',[['CBL-100',6],['STR-150',4]],{ method:'zelle', status:'pending', reference:'AGRICOLA-553120', note:'ACO-1046 cable deposit', payerHandle:'+503 7900-3321', submittedAt:'2026-06-14T18:25:00' },false),
+    mk('ACO-1047','sm','Wendy Guzmán','+503 7012-8845','2026-06-13',[['MTR-001',2],['CON-001',1]],{ method:'card', status:'paid', last4:'7733', paidAt:'2026-06-13T09:30:00' },false),
+    mk('ACO-1048','so','Luis Fernando Alas','+503 7345-9912','2026-06-13',[['CND-050',10],['CND-075',6]],{ method:'zelle', status:'confirmed', reference:'CUSCATLAN-220194', note:'pago ACO-1048', payerHandle:'lf.alas@outlook.com', submittedAt:'2026-06-12T20:00:00', confirmedAt:'2026-06-13T08:05:00' },true),
+    mk('ACO-1049','mo','Karla Beatriz Romero','+503 7820-1144','2026-06-13',[['TPE-330',12],['STR-150',6],['GLV-008',2]],{ method:'card', status:'paid', last4:'9090', paidAt:'2026-06-13T13:12:00' },false),
+    mk('ACO-1050','lu','Mario Ernesto Cruz','+503 7456-7788','2026-06-12',[['PNL-012',1],['BRK-020',12]],{ method:'venmo', status:'paid', payerHandle:'@mario-cruz-sv', paidAt:'2026-06-12T11:45:00' },true),
+    mk('ACO-1051','ch','Gloria Esperanza Díaz','+503 7677-3020','2026-06-12',[['CBL-220',2],['CON-001',1],['TPE-330',4]],{ method:'zelle', status:'pending', reference:'DAVIVIENDA-99320', note:'Gloria Díaz - ACO 1051', payerHandle:'gloria.diaz@hotmail.com', submittedAt:'2026-06-12T19:10:00' },false),
+    mk('ACO-1052','ss','Óscar Armando Flores','+503 7011-6654','2026-06-11',[['MTR-001',1],['GLV-008',3],['HLM-004',3]],{ method:'card', status:'paid', last4:'3210', paidAt:'2026-06-11T15:50:00' },false),
+    mk('ACO-1053','sa','Patricia Lemus','+503 7233-9087','2026-06-11',[['CBL-100',2],['CND-075',3]],{ method:'zelle', status:'confirmed', reference:'BAC-7012933', note:'deposito acopio 1053', payerHandle:'+503 7233-9087', submittedAt:'2026-06-10T21:30:00', confirmedAt:'2026-06-11T07:40:00' },false),
+    mk('ACO-1054','ah','Edwin Salazar','+503 7544-2200','2026-06-10',[['STR-150',10],['TPE-330',6]],{ method:'card', status:'paid', last4:'6677', paidAt:'2026-06-10T12:00:00' },true),
+    mk('ACO-1055','la','Sandra Milena Vásquez','+503 7012-9981','2026-06-10',[['CBL-220',3],['BRK-020',8],['CON-001',2]],{ method:'zelle', status:'pending', reference:'BAC-7741888', note:'pago acopio 1055', payerHandle:'+503 7012-9981', submittedAt:'2026-06-10T17:22:00' },false)
+  ];
+}
+// Populate sample orders if none exist (or force a reset). Returns the list.
+function seedOrders(force){
+  let existing=[]; try{ existing=JSON.parse(localStorage.getItem(ORDERS))||[] }catch(e){}
+  if(existing.length && !force) return existing;
+  const data = sampleOrders();
+  localStorage.setItem(ORDERS, JSON.stringify(data));
+  return data;
+}

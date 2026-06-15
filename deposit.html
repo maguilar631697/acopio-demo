@@ -30,13 +30,50 @@
       <div class="pay-amt brandtext" id="depAmt">$0.00</div>
       <div class="pay-sub" id="depSub"></div>
 
-      <div class="field"><label>Card number</label><input id="cardNo" inputmode="numeric" placeholder="4242 4242 4242 4242" value="4242 4242 4242 4242"></div>
-      <div class="two">
-        <div class="field"><label>Expiry</label><input id="cardExp" placeholder="MM / YY" value="12 / 30"></div>
-        <div class="field"><label>CVC</label><input id="cardCvc" placeholder="123" value="123"></div>
+      <!-- method selector -->
+      <div class="pay-methods" id="payMethods">
+        <button class="pm" data-method="card" onclick="setMethod('card')"><span class="pm-ic">▭</span>Card</button>
+        <button class="pm" data-method="venmo" onclick="setMethod('venmo')"><span class="pm-ic">V</span>Venmo</button>
+        <button class="pm" data-method="zelle" onclick="setMethod('zelle')"><span class="pm-ic">Z</span>Zelle</button>
       </div>
-      <div class="field"><label>Name on card</label><input id="cardName" placeholder="Full name"></div>
-      <button class="btn primary full" id="payBtn">Pay deposit & reserve order</button>
+
+      <!-- CARD -->
+      <div class="pm-panel" id="panel-card">
+        <div class="field"><label>Card number</label><input id="cardNo" inputmode="numeric" placeholder="4242 4242 4242 4242" value="4242 4242 4242 4242"></div>
+        <div class="two">
+          <div class="field"><label>Expiry</label><input id="cardExp" placeholder="MM / YY" value="12 / 30"></div>
+          <div class="field"><label>CVC</label><input id="cardCvc" placeholder="123" value="123"></div>
+        </div>
+        <div class="field"><label>Name on card</label><input id="cardName" placeholder="Full name"></div>
+        <button class="btn primary full" id="payCardBtn">Pay deposit &amp; reserve order</button>
+      </div>
+
+      <!-- VENMO -->
+      <div class="pm-panel hidden" id="panel-venmo">
+        <div class="pay-inst">
+          <p>Send your deposit of <b id="venmoAmt" class="brandtext"></b> in Venmo to:</p>
+          <div class="pay-acct"><span class="k">Venmo</span><span class="v" id="venmoHandle">@Acopio-SV</span></div>
+          <p class="pay-hint">Include your order note so we can match it. Then tap below to confirm.</p>
+        </div>
+        <div class="field"><label>Your Venmo username</label><input id="venmoUser" placeholder="@yourname"></div>
+        <button class="btn primary full" id="payVenmoBtn">I’ve paid in Venmo</button>
+      </div>
+
+      <!-- ZELLE -->
+      <div class="pm-panel hidden" id="panel-zelle">
+        <div class="pay-inst">
+          <p>Send your deposit of <b id="zelleAmt" class="brandtext"></b> via Zelle to:</p>
+          <div class="pay-acct"><span class="k">Email</span><span class="v" id="zelleEmail">pagos@acopio.sv</span></div>
+          <div class="pay-acct"><span class="k">Phone</span><span class="v" id="zellePhone">+503 2222-1000</span></div>
+          <div class="pay-acct"><span class="k">Name</span><span class="v" id="zelleName">Acopio</span></div>
+          <p class="pay-hint">After sending, enter your bank’s confirmation number <b>and the memo/note you put on the Zelle payment</b> — staff verify the note before releasing your order.</p>
+        </div>
+        <div class="field"><label>Zelle confirmation / reference #</label><input id="zelleRef" placeholder="e.g. BAC-8842197"></div>
+        <div class="field"><label>Memo / note on your payment <span class="req">required</span></label><input id="zelleNote" placeholder="e.g. Order deposit — your name"></div>
+        <div class="field"><label>Your Zelle email or phone</label><input id="zelleHandle" placeholder="email or +503 ..."></div>
+        <button class="btn primary full" id="payZelleBtn">Submit Zelle payment for confirmation</button>
+      </div>
+
       <p style="text-align:center;color:var(--dim);font-size:12px;margin-top:14px">Balance is paid in person when you collect at the center.</p>
     </div>
   </div>
@@ -45,13 +82,13 @@
 <!-- CONFIRM -->
 <section id="confirmView" class="screen wrap center-screen hidden">
   <div class="confirm">
-    <div class="check">✓</div>
-    <h1 class="hero" style="font-size:42px">Order reserved.</h1>
-    <p class="lead" style="margin:14px auto 0">Your deposit is in. Show this order number at the center to collect and pay the balance.</p>
+    <div class="check" id="confCheck">✓</div>
+    <h1 class="hero" id="confTitle" style="font-size:42px">Order reserved.</h1>
+    <p class="lead" id="confLead" style="margin:14px auto 0">Your deposit is in. Show this order number at the center to collect and pay the balance.</p>
     <div class="order-no brandtext" id="confNo">ACO-0000</div>
     <div class="info-box" id="confInfo"></div>
     <div class="btn-row" style="justify-content:center">
-      <a class="btn ghost" href="pickup.html">Open staff pickup view →</a>
+      <a class="btn ghost" href="admin.html">Open order management →</a>
       <button class="btn primary" onclick="newOrder()">Start a new order</button>
     </div>
   </div>
@@ -75,34 +112,109 @@ document.getElementById('depAmt').textContent = CURRENCY(dep);
 document.getElementById('depSub').textContent = `30% of ${CURRENCY(sub)} order · balance ${CURRENCY(sub-dep)} on pickup at ${center.name}`;
 document.getElementById('cardName').value = (S.customer&&S.customer.name)||'';
 
-document.getElementById('payBtn').onclick = function(){
+// fill payment account details
+document.getElementById('venmoAmt').textContent = CURRENCY(dep);
+document.getElementById('zelleAmt').textContent = CURRENCY(dep);
+document.getElementById('venmoHandle').textContent = PAY_ACCOUNTS.venmo.handle;
+document.getElementById('zelleEmail').textContent = PAY_ACCOUNTS.zelle.email;
+document.getElementById('zellePhone').textContent = PAY_ACCOUNTS.zelle.phone;
+document.getElementById('zelleName').textContent = PAY_ACCOUNTS.zelle.name;
+document.getElementById('zelleHandle').value = (S.customer&&S.customer.phone)||'';
+
+let method = 'card';
+function setMethod(m){
+  method = m;
+  document.querySelectorAll('#payMethods .pm').forEach(b=> b.classList.toggle('on', b.dataset.method===m));
+  ['card','venmo','zelle'].forEach(k=> document.getElementById('panel-'+k).classList.toggle('hidden', k!==m));
+}
+setMethod('card');
+
+function baseOrder(){
+  return {
+    orderId: 'ACO-' + (1000 + (Math.floor(performance.now())%9000)),
+    center: { id:center.id, name:center.name, city:center.city },
+    items: cartArray(S),
+    customer: S.customer,
+    subtotal: sub, deposit: dep, balance: sub-dep,
+    pickedUp: false,
+    placed: new Date().toISOString().slice(0,10)
+  };
+}
+function finalize(order){ saveOrder(order); clearState(); renderConfirm(order); }
+
+// CARD
+document.getElementById('payCardBtn').onclick = function(){
   const btn=this; btn.textContent='Processing…'; btn.disabled=true;
   setTimeout(()=>{
-    const order = {
-      orderId: 'ACO-' + (1000 + (Math.floor(performance.now())%9000)),
-      center: { id:center.id, name:center.name, city:center.city },
-      items: cartArray(S),
-      customer: S.customer,
-      subtotal: sub, deposit: dep, balance: sub-dep,
-      depositPaid: true, pickedUp: false,
-      placed: new Date().toISOString().slice(0,10)
-    };
-    saveOrder(order);
-    clearState();
-    renderConfirm(order);
+    const o = baseOrder();
+    const last4 = (document.getElementById('cardNo').value.replace(/\D/g,'').slice(-4))||'4242';
+    o.payment = { method:'card', status:'paid', last4, paidAt:new Date().toISOString() };
+    o.depositPaid = true;
+    finalize(o);
   }, 1100);
+};
+
+// VENMO
+document.getElementById('payVenmoBtn').onclick = function(){
+  const btn=this; btn.textContent='Confirming…'; btn.disabled=true;
+  setTimeout(()=>{
+    const o = baseOrder();
+    o.payment = { method:'venmo', status:'paid', payerHandle:(document.getElementById('venmoUser').value.trim()||'@customer'), paidAt:new Date().toISOString() };
+    o.depositPaid = true;
+    finalize(o);
+  }, 900);
+};
+
+// ZELLE — submitted for staff confirmation (note required)
+document.getElementById('payZelleBtn').onclick = function(){
+  const note = document.getElementById('zelleNote').value.trim();
+  const noteField = document.getElementById('zelleNote');
+  if(!note){
+    noteField.classList.add('err'); noteField.focus();
+    noteField.setAttribute('placeholder','Required — enter the note on your Zelle payment');
+    return;
+  }
+  noteField.classList.remove('err');
+  const btn=this; btn.textContent='Submitting…'; btn.disabled=true;
+  setTimeout(()=>{
+    const o = baseOrder();
+    o.payment = {
+      method:'zelle', status:'pending',
+      reference: document.getElementById('zelleRef').value.trim(),
+      note,
+      payerHandle: document.getElementById('zelleHandle').value.trim(),
+      submittedAt: new Date().toISOString()
+    };
+    o.depositPaid = false; // not recognized until staff confirms
+    finalize(o);
+  }, 900);
 };
 
 function renderConfirm(o){
   document.getElementById('payView').classList.add('hidden');
   document.getElementById('confNo').textContent = o.orderId;
+  const pending = o.payment && o.payment.method==='zelle' && o.payment.status==='pending';
+
+  if(pending){
+    document.getElementById('confCheck').textContent = '⏳';
+    document.getElementById('confCheck').classList.add('pending');
+    document.getElementById('confTitle').textContent = 'Payment submitted.';
+    document.getElementById('confLead').textContent = 'We received your Zelle details. Staff will verify the payment note and confirm your order shortly — you keep this order number either way.';
+  }
+
+  const payRow = o.payment.method==='zelle'
+    ? `<div class="ir"><span class="k">Payment</span><span class="v">Zelle · ${pending?'<span class="tag await">● awaiting confirmation</span>':'<span class="tag paid">● confirmed</span>'}</span></div>
+       <div class="ir"><span class="k">Reference</span><span class="v">${o.payment.reference||'—'}</span></div>
+       <div class="ir"><span class="k">Payment note</span><span class="v">${o.payment.note||'—'}</span></div>`
+    : `<div class="ir"><span class="k">Payment</span><span class="v">${PAY_LABEL[o.payment.method]} · <span class="tag paid">● ${CURRENCY(o.deposit)} paid</span></span></div>`;
+
   document.getElementById('confInfo').innerHTML = `
     <div class="ir"><span class="k">Pickup center</span><span class="v">${o.center.name}</span></div>
     <div class="ir"><span class="k">Location</span><span class="v">${o.center.city}</span></div>
     <div class="ir"><span class="k">Customer</span><span class="v">${o.customer.name}</span></div>
     <div class="ir"><span class="k">Items</span><span class="v">${o.items.reduce((t,i)=>t+i.qty,0)} units · ${o.items.length} products</span></div>
     <div class="ir"><span class="k">Order total</span><span class="v">${CURRENCY(o.subtotal)}</span></div>
-    <div class="ir"><span class="k">Deposit paid</span><span class="v"><span class="tag paid">● ${CURRENCY(o.deposit)}</span></span></div>
+    ${payRow}
     <div class="ir"><span class="k">Balance on pickup</span><span class="v bal">${CURRENCY(o.balance)}</span></div>`;
   const cv=document.getElementById('confirmView'); cv.classList.remove('hidden'); cv.classList.add('fade');
   window.scrollTo({top:0,behavior:'smooth'});

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070810">
+<title>Order Management — Acopio</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23070810'/%3E%3Cpath d='M28 33h44v34H28z' fill='%233fe0c5'/%3E%3Cpath d='M34 41h32v5H34zm0 12h20v5H34z' fill='%23070810'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="logo"><span class="dot">A</span> Acopio <span style="font-size:13px;color:var(--mid);font-weight:600;margin-left:6px">· Admin</span></div>
+  <div class="nav-links">
+    <a href="index.html">Place Order</a>
+    <a href="pickup.html">Pickup</a>
+    <a href="admin.html" class="pill">Orders</a>
+  </div>
+</nav>
+
+<section class="screen wrap fade" style="padding-top:clamp(20px,4vw,34px)">
+  <div class="sec-head" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
+    <div><h2>Order management</h2><p>Track deposits, confirm Zelle payments, and release pickups.</p></div>
+    <button class="btn ghost" id="resetBtn" style="padding:11px 18px;font-size:14px">Reset sample data</button>
+  </div>
+
+  <!-- stats -->
+  <div class="stats" id="stats"></div>
+
+  <!-- filters -->
+  <div class="admin-toolbar">
+    <div class="search">
+      <span class="si">⌕</span>
+      <input id="oSearch" type="search" placeholder="Search order #, customer, phone…" autocomplete="off" oninput="onFilter()">
+    </div>
+    <select id="fStatus" onchange="onFilter()">
+      <option value="all">All statuses</option>
+      <option value="awaiting">Awaiting confirmation</option>
+      <option value="reserved">Reserved</option>
+      <option value="picked_up">Picked up</option>
+    </select>
+    <select id="fMethod" onchange="onFilter()">
+      <option value="all">All methods</option>
+      <option value="card">Card</option>
+      <option value="venmo">Venmo</option>
+      <option value="zelle">Zelle</option>
+    </select>
+    <select id="fCenter" onchange="onFilter()"><option value="all">All centers</option></select>
+  </div>
+
+  <!-- orders -->
+  <div id="ordersWrap">
+    <div class="otable-head">
+      <span>Order</span><span>Customer</span><span>Center</span><span>Payment</span><span>Status</span><span class="ta-r">Deposit</span>
+    </div>
+    <div id="ordersList"></div>
+  </div>
+  <div id="ordersPager" class="pager"></div>
+</section>
+
+<!-- DETAIL MODAL -->
+<div id="modal" class="modal hidden" onclick="if(event.target===this) closeModal()">
+  <div class="modal-card" id="modalCard"></div>
+</div>
+
+<div class="foot">
+  <span>Acopio · Order management — demo build</span>
+  <span>Orders stored locally for this demo</span>
+</div>
+
+<script src="app.js"></script>
+<script>
+seedOrders();           // populate sample orders if none exist
+const flt = { q:'', status:'all', method:'all', center:'all', page:1 };
+const PAGE = 8;
+let reqId = 0, debounce = null;
+
+// center filter options
+document.getElementById('fCenter').insertAdjacentHTML('beforeend',
+  CENTERS.map(c=>`<option value="${c.id}">${c.name}</option>`).join(''));
+
+function renderStats(){
+  const s = OrdersAPI.stats();
+  document.getElementById('stats').innerHTML = [
+    ['Orders', s.orders, ''],
+    ['Deposits collected', CURRENCY(s.revenue), 'ok'],
+    ['Awaiting Zelle', s.awaiting, s.awaiting? 'warn':''],
+    ['Picked up', s.pickedUp, 'brand']
+  ].map(([k,v,cls])=>`<div class="stat ${cls}"><div class="sv">${v}</div><div class="sk">${k}</div></div>`).join('');
+}
+
+function onFilter(){
+  flt.q = document.getElementById('oSearch').value;
+  flt.status = document.getElementById('fStatus').value;
+  flt.method = document.getElementById('fMethod').value;
+  flt.center = document.getElementById('fCenter').value;
+  flt.page = 1;
+  clearTimeout(debounce); debounce = setTimeout(loadOrders, 220);
+}
+function gotoPage(n){ flt.page=n; loadOrders(); document.getElementById('ordersWrap').scrollIntoView({behavior:'smooth',block:'start'}); }
+
+async function loadOrders(){
+  const list = document.getElementById('ordersList');
+  const req = ++reqId;
+  list.classList.add('loading');
+  list.innerHTML = Array.from({length:4}).map(()=>`<div class="orow skel"></div>`).join('');
+  document.getElementById('ordersPager').innerHTML='';
+  const resp = await OrdersAPI.list({ q:flt.q, status:flt.status, method:flt.method, center:flt.center, page:flt.page, pageSize:PAGE });
+  if(req!==reqId) return;
+  list.classList.remove('loading');
+  flt.page = resp.page;
+  renderRows(resp);
+}
+
+function methodChip(o){
+  const m=(o.payment&&o.payment.method)||'card';
+  return `<span class="mchip m-${m}">${PAY_LABEL[m]}</span>`;
+}
+function statusTag(o){
+  const st = orderStatus(o), meta = STATUS_META[st];
+  return `<span class="tag ${meta.cls}">● ${meta.label}</span>`;
+}
+
+function renderRows(resp){
+  const list = document.getElementById('ordersList');
+  if(!resp.items.length){
+    list.innerHTML = `<div class="empty no-res">No orders match your filters.</div>`;
+    document.getElementById('ordersPager').innerHTML='';
+    return;
+  }
+  list.innerHTML = resp.items.map(o=>{
+    const units = o.items.reduce((t,i)=>t+i.qty,0);
+    return `<div class="orow" onclick="openOrder('${o.orderId}')">
+      <span class="oc oc-id"><b>${o.orderId}</b><small>${o.placed}</small></span>
+      <span class="oc oc-cust"><b>${o.customer.name}</b><small>${o.customer.phone||''}</small></span>
+      <span class="oc oc-center">${o.center.name}<small>${units} units · ${o.items.length} items</small></span>
+      <span class="oc oc-pay">${methodChip(o)}</span>
+      <span class="oc oc-status">${statusTag(o)}</span>
+      <span class="oc oc-amt ta-r"><b>${CURRENCY(o.deposit)}</b><small>${o.depositPaid?'collected':'pending'}</small></span>
+    </div>`;
+  }).join('');
+
+  // pager
+  const pager = document.getElementById('ordersPager');
+  const start = (resp.page-1)*resp.pageSize;
+  if(resp.pages<=1){
+    pager.innerHTML = `<span class="pg-info">${resp.total} order${resp.total!==1?'s':''}</span>`;
+  } else {
+    const want=new Set([1,resp.pages,resp.page,resp.page-1,resp.page+1]);
+    const nums=[...want].filter(n=>n>=1&&n<=resp.pages).sort((a,b)=>a-b);
+    let btns='',prev=0;
+    nums.forEach(i=>{ if(i-prev>1) btns+=`<span class="pg-gap">…</span>`; btns+=`<button class="pg${i===resp.page?' on':''}" onclick="gotoPage(${i})">${i}</button>`; prev=i; });
+    pager.innerHTML = `<span class="pg-info">${start+1}–${Math.min(start+resp.pageSize,resp.total)} of ${resp.total}</span>
+      <div class="pg-btns">
+        <button class="pg" onclick="gotoPage(${Math.max(1,resp.page-1)})" ${resp.page===1?'disabled':''}>‹</button>${btns}
+        <button class="pg" onclick="gotoPage(${Math.min(resp.pages,resp.page+1)})" ${resp.page===resp.pages?'disabled':''}>›</button>
+      </div>`;
+  }
+}
+
+/* ---------- detail modal ---------- */
+function openOrder(id){
+  const o = findOrder(id); if(!o) return;
+  const st = orderStatus(o);
+  const pay = o.payment || { method:'card', status:'paid' };
+  const isZellePending = pay.method==='zelle' && pay.status==='pending';
+
+  const payBlock = pay.method==='zelle'
+    ? `<div class="pay-detail ${isZellePending?'awaiting':'ok'}">
+         <div class="pd-head">${PAY_LABEL.zelle} payment ${isZellePending?'<span class="tag await">● awaiting confirmation</span>':'<span class="tag paid">● confirmed</span>'}</div>
+         <div class="ir"><span class="k">Reference #</span><span class="v">${pay.reference||'—'}</span></div>
+         <div class="ir"><span class="k">Payment note</span><span class="v note">${pay.note||'—'}</span></div>
+         <div class="ir"><span class="k">Payer</span><span class="v">${pay.payerHandle||'—'}</span></div>
+         <div class="ir"><span class="k">Submitted</span><span class="v">${(pay.submittedAt||'').replace('T',' ').slice(0,16)||'—'}</span></div>
+         ${pay.confirmedAt?`<div class="ir"><span class="k">Confirmed</span><span class="v">${pay.confirmedAt.replace('T',' ').slice(0,16)}</span></div>`:''}
+       </div>`
+    : `<div class="pay-detail ok">
+         <div class="pd-head">${PAY_LABEL[pay.method]} payment <span class="tag paid">● ${CURRENCY(o.deposit)} paid</span></div>
+         ${pay.last4?`<div class="ir"><span class="k">Card</span><span class="v">•••• ${pay.last4}</span></div>`:''}
+         ${pay.payerHandle?`<div class="ir"><span class="k">Handle</span><span class="v">${pay.payerHandle}</span></div>`:''}
+         ${pay.paidAt?`<div class="ir"><span class="k">Paid</span><span class="v">${pay.paidAt.replace('T',' ').slice(0,16)}</span></div>`:''}
+       </div>`;
+
+  let actions = '';
+  if(isZellePending){
+    actions += `<div class="confirm-banner">Verify the payment note above against your bank statement, then confirm.</div>
+      <button class="btn primary full" onclick="confirmZelle('${o.orderId}')">✓ Confirm Zelle payment (${CURRENCY(o.deposit)})</button>`;
+  }
+  if(!o.pickedUp){
+    actions += `<button class="btn ${isZellePending?'ghost':'primary'} full" style="margin-top:10px" onclick="markPicked('${o.orderId}')">Collect ${CURRENCY(o.balance)} &amp; mark picked up</button>`;
+  } else {
+    actions += `<p style="text-align:center;color:var(--ok);font-weight:700;margin-top:14px">✓ Completed — paid in full</p>`;
+  }
+
+  document.getElementById('modalCard').innerHTML = `
+    <div class="modal-top">
+      <div><div class="mt-id brandtext">${o.orderId}</div><div class="mt-sub">${o.customer.name} · ${o.customer.phone||''}</div></div>
+      <button class="modal-x" onclick="closeModal()">✕</button>
+    </div>
+    <div class="mt-tags">${statusTag(o)} ${methodChip(o)}</div>
+    <div class="info-box" style="margin:16px 0">
+      <div class="ir"><span class="k">Center</span><span class="v">${o.center.name} — ${o.center.city}</span></div>
+      <div class="ir"><span class="k">Placed</span><span class="v">${o.placed}</span></div>
+      <div class="ir"><span class="k">Order total</span><span class="v">${CURRENCY(o.subtotal)}</span></div>
+      <div class="ir"><span class="k">Deposit (30%)</span><span class="v">${CURRENCY(o.deposit)}</span></div>
+      <div class="ir"><span class="k">Balance on pickup</span><span class="v bal">${CURRENCY(o.balance)}</span></div>
+    </div>
+    <div class="mt-label">ITEMS</div>
+    <div class="mt-items">
+      ${o.items.map(i=>`<div class="line"><div><div class="nm">${i.name}</div><div class="qy">${i.qty} × ${CURRENCY(i.price)}</div></div><div class="amt">${CURRENCY(i.price*i.qty)}</div></div>`).join('')}
+    </div>
+    <div class="mt-label">PAYMENT</div>
+    ${payBlock}
+    <div class="mt-actions">${actions}</div>
+  `;
+  document.getElementById('modal').classList.remove('hidden');
+  document.body.style.overflow='hidden';
+}
+function closeModal(){ document.getElementById('modal').classList.add('hidden'); document.body.style.overflow=''; }
+function confirmZelle(id){ OrdersAPI.confirmZelle(id); refresh(); openOrder(id); }
+function markPicked(id){ OrdersAPI.markPicked(id); refresh(); openOrder(id); }
+
+function refresh(){ renderStats(); loadOrders(); }
+document.getElementById('resetBtn').onclick = ()=>{ seedOrders(true); flt.page=1; refresh(); };
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+renderStats();
+loadOrders();
+</script>
+</body>
+</html>
