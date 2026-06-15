@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deposit — Acopio</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="logo"><span class="dot">A</span> Acopio</div>
+  <div class="nav-links"><a href="index.html">← Back to order</a></div>
+</nav>
+
+<!-- PAY -->
+<section id="payView" class="screen wrap center-screen fade">
+  <div class="steps" style="justify-content:center">
+    <div class="st done"><span class="n">✓</span>Center</div><span class="sep"></span>
+    <div class="st done"><span class="n">✓</span>Order</div><span class="sep"></span>
+    <div class="st done"><span class="n">✓</span>Details</div><span class="sep"></span>
+    <div class="st active"><span class="n">4</span>Deposit</div>
+  </div>
+  <div class="pay-wrap">
+    <div class="pay-card">
+      <div class="demo-badge">Demo payment · no real charge</div>
+      <div style="color:var(--mid);font-size:14px">Deposit due to reserve your order</div>
+      <div class="pay-amt brandtext" id="depAmt">$0.00</div>
+      <div class="pay-sub" id="depSub"></div>
+
+      <div class="field"><label>Card number</label><input id="cardNo" inputmode="numeric" placeholder="4242 4242 4242 4242" value="4242 4242 4242 4242"></div>
+      <div class="two">
+        <div class="field"><label>Expiry</label><input id="cardExp" placeholder="MM / YY" value="12 / 30"></div>
+        <div class="field"><label>CVC</label><input id="cardCvc" placeholder="123" value="123"></div>
+      </div>
+      <div class="field"><label>Name on card</label><input id="cardName" placeholder="Full name"></div>
+      <button class="btn primary full" id="payBtn">Pay deposit & reserve order</button>
+      <p style="text-align:center;color:var(--dim);font-size:12px;margin-top:14px">Balance is paid in person when you collect at the center.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CONFIRM -->
+<section id="confirmView" class="screen wrap center-screen hidden">
+  <div class="confirm">
+    <div class="check">✓</div>
+    <h1 class="hero" style="font-size:42px">Order reserved.</h1>
+    <p class="lead" style="margin:14px auto 0">Your deposit is in. Show this order number at the center to collect and pay the balance.</p>
+    <div class="order-no brandtext" id="confNo">ACO-0000</div>
+    <div class="info-box" id="confInfo"></div>
+    <div class="btn-row" style="justify-content:center">
+      <a class="btn ghost" href="pickup.html">Open staff pickup view →</a>
+      <button class="btn primary" onclick="newOrder()">Start a new order</button>
+    </div>
+  </div>
+</section>
+
+<div class="foot">
+  <span>Acopio · Distribution Order System — demo build</span>
+  <span>Deposit 30% online · balance on pickup</span>
+</div>
+
+<script src="app.js"></script>
+<script>
+const S = loadState();
+const sub = subtotal(S);
+const dep = depositOf(sub);
+
+if(!S.center || !cartArray(S).length){ window.location.href='index.html'; }
+
+const center = CENTERS.find(c=>c.id===S.center) || {};
+document.getElementById('depAmt').textContent = CURRENCY(dep);
+document.getElementById('depSub').textContent = `30% of ${CURRENCY(sub)} order · balance ${CURRENCY(sub-dep)} on pickup at ${center.name}`;
+document.getElementById('cardName').value = (S.customer&&S.customer.name)||'';
+
+document.getElementById('payBtn').onclick = function(){
+  const btn=this; btn.textContent='Processing…'; btn.disabled=true;
+  setTimeout(()=>{
+    const order = {
+      orderId: 'ACO-' + (1000 + (Math.floor(performance.now())%9000)),
+      center: { id:center.id, name:center.name, city:center.city },
+      items: cartArray(S),
+      customer: S.customer,
+      subtotal: sub, deposit: dep, balance: sub-dep,
+      depositPaid: true, pickedUp: false,
+      placed: new Date().toISOString().slice(0,10)
+    };
+    saveOrder(order);
+    clearState();
+    renderConfirm(order);
+  }, 1100);
+};
+
+function renderConfirm(o){
+  document.getElementById('payView').classList.add('hidden');
+  document.getElementById('confNo').textContent = o.orderId;
+  document.getElementById('confInfo').innerHTML = `
+    <div class="ir"><span class="k">Pickup center</span><span class="v">${o.center.name}</span></div>
+    <div class="ir"><span class="k">Location</span><span class="v">${o.center.city}</span></div>
+    <div class="ir"><span class="k">Customer</span><span class="v">${o.customer.name}</span></div>
+    <div class="ir"><span class="k">Items</span><span class="v">${o.items.reduce((t,i)=>t+i.qty,0)} units · ${o.items.length} products</span></div>
+    <div class="ir"><span class="k">Order total</span><span class="v">${CURRENCY(o.subtotal)}</span></div>
+    <div class="ir"><span class="k">Deposit paid</span><span class="v"><span class="tag paid">● ${CURRENCY(o.deposit)}</span></span></div>
+    <div class="ir"><span class="k">Balance on pickup</span><span class="v bal">${CURRENCY(o.balance)}</span></div>`;
+  const cv=document.getElementById('confirmView'); cv.classList.remove('hidden'); cv.classList.add('fade');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function newOrder(){ window.location.href='index.html'; }
+</script>
+</body>
+</html>

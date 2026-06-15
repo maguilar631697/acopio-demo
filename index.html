@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acopio — Distribution Order System</title>
+<meta name="description" content="Acopio — modern distribution center ordering, deposits, and pickup.">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="logo"><span class="dot">A</span> Acopio</div>
+  <div class="nav-links">
+    <a href="index.html" class="pill">Place Order</a>
+    <a href="pickup.html">Staff · Pickup</a>
+  </div>
+</nav>
+
+<!-- VIEW 0: HERO + CENTER SELECT -->
+<section id="v-center" class="screen wrap center-screen fade">
+  <div class="kicker"><span class="blip"></span> 10 Distribution Centers · Live Demo</div>
+  <h1 class="hero">Order once.<br><span class="brandtext">Reserve, deposit, pick up.</span></h1>
+  <p class="lead">Choose your distribution center to start an order. Build your list, place a deposit online, and pay the balance when you collect — no more scattered spreadsheets.</p>
+  <div class="sec-head"><h2>Select your center</h2><p>Where will this order be picked up?</p></div>
+  <div id="centerGrid" class="grid centers"></div>
+</section>
+
+<!-- VIEW 1: ORDER BUILDER -->
+<section id="v-order" class="screen wrap hidden">
+  <div class="steps" id="steps1"></div>
+  <div class="sec-head"><h2>Build your order</h2><p id="orderCtr"></p></div>
+  <div class="layout">
+    <div id="productGrid" class="grid products"></div>
+    <aside class="panel">
+      <h2>Your order</h2>
+      <div id="cartLines"><div class="empty">No items yet — add products from the catalog.</div></div>
+      <div class="totals" id="cartTotals"></div>
+      <div class="btn-row">
+        <button class="btn primary full" id="toCustomer" disabled>Continue →</button>
+      </div>
+      <button class="btn ghost full" style="margin-top:10px" onclick="goCenter()">← Change center</button>
+    </aside>
+  </div>
+</section>
+
+<!-- VIEW 2: CUSTOMER DETAILS -->
+<section id="v-customer" class="screen wrap hidden">
+  <div class="steps" id="steps2"></div>
+  <div class="layout">
+    <div>
+      <div class="sec-head"><h2>Your details</h2><p>So the center knows who's collecting and can confirm the order.</p></div>
+      <div class="two">
+        <div class="field"><label>Full name</label><input id="c_name" placeholder="Jane Doe"></div>
+        <div class="field"><label>Company (optional)</label><input id="c_company" placeholder="Doe Electric"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label>Phone</label><input id="c_phone" placeholder="+503 7000 0000"></div>
+        <div class="field"><label>Email</label><input id="c_email" type="email" placeholder="jane@email.com"></div>
+      </div>
+      <div class="field"><label>Pickup notes (optional)</label><input id="c_notes" placeholder="Preferred pickup day, vehicle, etc."></div>
+      <div class="btn-row">
+        <button class="btn ghost" onclick="show('v-order')">← Back</button>
+        <button class="btn primary" id="toDeposit">Proceed to deposit →</button>
+      </div>
+    </div>
+    <aside class="panel">
+      <h2>Summary</h2>
+      <div id="custCenter" class="line"></div>
+      <div id="custLines"></div>
+      <div class="totals" id="custTotals"></div>
+    </aside>
+  </div>
+</section>
+
+<div class="foot">
+  <span>Acopio · Distribution Order System — demo build</span>
+  <span>Deposit 30% online · balance on pickup</span>
+</div>
+
+<script src="app.js"></script>
+<script>
+let S = loadState();
+
+/* ---------- view switching ---------- */
+function show(id){
+  ['v-center','v-order','v-customer'].forEach(v=>document.getElementById(v).classList.add('hidden'));
+  const el=document.getElementById(id); el.classList.remove('hidden'); el.classList.remove('fade'); void el.offsetWidth; el.classList.add('fade');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function stepsBar(active){
+  const names=['Center','Order','Details','Deposit'];
+  return names.map((n,i)=>{
+    const cls = i<active?'done':(i===active?'active':'');
+    return `<div class="st ${cls}"><span class="n">${i<active?'✓':i+1}</span>${n}</div>` + (i<3?'<span class="sep"></span>':'');
+  }).join('');
+}
+
+/* ---------- center select ---------- */
+function renderCenters(){
+  document.getElementById('centerGrid').innerHTML = CENTERS.map(c=>`
+    <div class="card ${S.center===c.id?'selected':''}" onclick="pickCenter('${c.id}')">
+      <div class="ic">${c.emoji}</div>
+      <h3>${c.name}</h3>
+      <div class="meta">${c.city}</div>
+    </div>`).join('');
+}
+function pickCenter(id){
+  S.center=id; saveState(S);
+  goOrder();
+}
+function goCenter(){ renderCenters(); show('v-center'); }
+function centerName(){ const c=CENTERS.find(x=>x.id===S.center); return c?`${c.name} — ${c.city}`:''; }
+
+/* ---------- order builder ---------- */
+function goOrder(){
+  document.getElementById('steps1').innerHTML=stepsBar(1);
+  document.getElementById('orderCtr').textContent='Picking up at '+centerName();
+  renderProducts(); renderCart(); show('v-order');
+}
+function renderProducts(){
+  document.getElementById('productGrid').innerHTML = CATALOG.map(p=>{
+    const qty = S.items[p.sku]||0;
+    return `<div class="card" style="cursor:default">
+      <span class="sku">${p.sku}</span>
+      <div class="ic">${p.emoji}</div>
+      <h3>${p.name}</h3>
+      <div class="meta">${p.cat} · ${p.unit}</div>
+      <div class="price">${CURRENCY(p.price)} <small>/ ${p.unit.replace('per ','')}</small></div>
+      <div class="adder">
+        <button onclick="bump('${p.sku}',-1)">−</button>
+        <input id="q-${p.sku}" value="${qty}" readonly>
+        <button onclick="bump('${p.sku}',1)">+</button>
+      </div>
+      <button class="add-btn" onclick="bump('${p.sku}',1)">Add to order</button>
+    </div>`;
+  }).join('');
+}
+function bump(sku,d){
+  const cur = S.items[sku]||0;
+  const next = Math.max(0, cur+d);
+  if(next===0) delete S.items[sku]; else S.items[sku]=next;
+  saveState(S);
+  const q=document.getElementById('q-'+sku); if(q) q.value=next;
+  renderCart();
+}
+function renderCart(){
+  const arr=cartArray(S);
+  const box=document.getElementById('cartLines');
+  if(!arr.length){ box.innerHTML='<div class="empty">No items yet — add products from the catalog.</div>'; }
+  else{
+    box.innerHTML=arr.map(i=>`<div class="line">
+      <div><div class="nm">${i.name}</div><div class="qy">${i.qty} × ${CURRENCY(i.price)} <span class="rm" onclick="bump('${i.sku}',-${i.qty})">remove</span></div></div>
+      <div class="amt">${CURRENCY(i.price*i.qty)}</div>
+    </div>`).join('');
+  }
+  const sub=subtotal(S), dep=depositOf(sub);
+  document.getElementById('cartTotals').innerHTML = arr.length?`
+    <div class="row"><span>Subtotal</span><span>${CURRENCY(sub)}</span></div>
+    <div class="row deposit"><span>Deposit due now (30%)</span><span>${CURRENCY(dep)}</span></div>
+    <div class="row"><span>Balance on pickup</span><span>${CURRENCY(sub-dep)}</span></div>
+    <div class="row big"><span>Order total</span><span>${CURRENCY(sub)}</span></div>`:'';
+  document.getElementById('toCustomer').disabled = !arr.length;
+}
+
+/* ---------- customer ---------- */
+function goCustomer(){
+  document.getElementById('steps2').innerHTML=stepsBar(2);
+  const c=S.customer||{};
+  c_name.value=c.name||''; c_company.value=c.company||''; c_phone.value=c.phone||''; c_email.value=c.email||''; c_notes.value=c.notes||'';
+  const sub=subtotal(S), dep=depositOf(sub);
+  document.getElementById('custCenter').innerHTML=`<div class="nm">${centerName()}</div>`;
+  document.getElementById('custLines').innerHTML=cartArray(S).map(i=>`<div class="line"><div><div class="nm">${i.name}</div><div class="qy">${i.qty} × ${CURRENCY(i.price)}</div></div><div class="amt">${CURRENCY(i.price*i.qty)}</div></div>`).join('');
+  document.getElementById('custTotals').innerHTML=`
+    <div class="row"><span>Subtotal</span><span>${CURRENCY(sub)}</span></div>
+    <div class="row deposit"><span>Deposit now</span><span>${CURRENCY(dep)}</span></div>
+    <div class="row"><span>Balance on pickup</span><span>${CURRENCY(sub-dep)}</span></div>
+    <div class="row big"><span>Total</span><span>${CURRENCY(sub)}</span></div>`;
+  show('v-customer');
+}
+document.getElementById('toCustomer').onclick=goCustomer;
+
+document.getElementById('toDeposit').onclick=function(){
+  if(!c_name.value.trim()||!c_phone.value.trim()){ alert('Please enter at least a name and phone number.'); return; }
+  S.customer={ name:c_name.value.trim(), company:c_company.value.trim(), phone:c_phone.value.trim(), email:c_email.value.trim(), notes:c_notes.value.trim() };
+  saveState(S);
+  window.location.href='deposit.html';
+};
+
+/* ---------- boot ---------- */
+renderCenters();
+if(S.center && cartArray(S).length){ goOrder(); }
+else if(S.center){ goOrder(); }
+else show('v-center');
+</script>
+</body>
+</html>

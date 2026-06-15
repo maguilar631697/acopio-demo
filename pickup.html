@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff Pickup — Acopio</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="logo"><span class="dot">A</span> Acopio <span style="font-size:13px;color:var(--mid);font-weight:600;margin-left:6px">· Staff</span></div>
+  <div class="nav-links"><a href="index.html">Place Order</a><a href="pickup.html" class="pill">Pickup</a></div>
+</nav>
+
+<section class="screen wrap center-screen fade">
+  <div class="sec-head"><h2>Pickup &amp; final payment</h2><p>Enter the customer's order number to collect and settle the balance.</p></div>
+
+  <div class="layout">
+    <div>
+      <div class="field" style="max-width:420px">
+        <label>Order number</label>
+        <input id="lookup" placeholder="ACO-1234" style="text-transform:uppercase;font-family:'Sora';font-size:20px;letter-spacing:1px">
+      </div>
+      <button class="btn primary" id="findBtn">Find order</button>
+      <div id="recent" style="margin-top:30px"></div>
+    </div>
+
+    <aside class="panel" id="result">
+      <div class="empty">Enter an order number to load it.</div>
+    </aside>
+  </div>
+</section>
+
+<div class="foot">
+  <span>Acopio · Staff terminal — demo build</span>
+  <span>Orders are stored locally for this demo</span>
+</div>
+
+<script src="app.js"></script>
+<script>
+function recentList(){
+  let list=[]; try{ list=JSON.parse(localStorage.getItem('acopio_orders'))||[] }catch(e){}
+  const box=document.getElementById('recent');
+  if(!list.length){ box.innerHTML='<div class="empty" style="text-align:left">No orders yet. Place one from the order page first.</div>'; return; }
+  box.innerHTML='<div style="font-size:13px;color:var(--mid);font-weight:700;margin-bottom:12px">RECENT ORDERS</div>'+
+    list.slice().reverse().map(o=>`<div class="line" style="cursor:pointer" onclick="loadOrder('${o.orderId}')">
+      <div><div class="nm">${o.orderId}</div><div class="qy">${o.customer.name} · ${o.center.name}</div></div>
+      <div>${o.pickedUp?'<span class="tag picked">picked up</span>':'<span class="tag due">balance due</span>'}</div>
+    </div>`).join('');
+}
+function loadOrder(id){
+  document.getElementById('lookup').value=id;
+  const o=findOrder(id);
+  const box=document.getElementById('result');
+  if(!o){ box.innerHTML='<div class="empty">No order found for <b>'+id+'</b>.</div>'; return; }
+  box.innerHTML=`
+    <h2>${o.orderId}</h2>
+    <div style="margin-bottom:14px">${o.pickedUp?'<span class="tag picked">● Picked up</span>':'<span class="tag due">● Balance due</span>'} ${o.depositPaid?'<span class="tag paid">● Deposit paid</span>':''}</div>
+    <div class="line"><span class="nm">Customer</span><span class="amt">${o.customer.name}</span></div>
+    <div class="line"><span class="nm">Phone</span><span class="amt">${o.customer.phone||'—'}</span></div>
+    <div class="line"><span class="nm">Center</span><span class="amt">${o.center.name}</span></div>
+    <div style="margin:14px 0 4px;font-size:13px;color:var(--mid);font-weight:700">ITEMS</div>
+    ${o.items.map(i=>`<div class="line"><div><div class="nm">${i.name}</div><div class="qy">${i.qty} × ${CURRENCY(i.price)}</div></div><div class="amt">${CURRENCY(i.price*i.qty)}</div></div>`).join('')}
+    <div class="totals">
+      <div class="row"><span>Order total</span><span>${CURRENCY(o.subtotal)}</span></div>
+      <div class="row deposit"><span>Deposit paid</span><span>− ${CURRENCY(o.deposit)}</span></div>
+      <div class="row big"><span>${o.pickedUp?'Paid in full':'Balance to collect'}</span><span>${CURRENCY(o.balance)}</span></div>
+    </div>
+    ${o.pickedUp?'<p style="text-align:center;color:var(--ok);font-weight:700;margin-top:18px">✓ Completed</p>'
+      :`<button class="btn primary full" style="margin-top:18px" onclick="collect('${o.orderId}')">Collect ${CURRENCY(o.balance)} &amp; mark picked up</button>`}
+  `;
+}
+function collect(id){
+  const o=findOrder(id); if(!o) return;
+  o.pickedUp=true; saveOrder(o);
+  loadOrder(id); recentList();
+}
+document.getElementById('findBtn').onclick=()=>loadOrder(document.getElementById('lookup').value.trim());
+document.getElementById('lookup').addEventListener('keydown',e=>{ if(e.key==='Enter') loadOrder(e.target.value.trim()); });
+recentList();
+</script>
+</body>
+</html>
