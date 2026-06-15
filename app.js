@@ -28,6 +28,43 @@ const CATALOG = [
   { sku:'MTR-001', name:'Digital Multimeter',     cat:'Tools',        unit:'each',          price:63.00,  icon:'MTR' },
 ];
 
+// Stress-test seed: index.html?demo=big appends ~300 generated SKUs (or ?demo=N
+// for N) so the picker's search/filter/pagination can be felt at scale.
+// Real demo stays at the curated 12 with no query param.
+(function(){
+  try{
+    var n = new URLSearchParams(location.search).get('demo');
+    if(n!=='big' && !(parseInt(n,10)>0)) return;
+    var count = (n==='big') ? 300 : Math.min(2000, parseInt(n,10));
+    var groups = [
+      { cat:'Cable & Wire', pre:'CBL', names:['THHN Copper Wire','Aluminum Cable 8000','XHHW Wire','Bare Copper Ground','Coax RG6','Cat6 UTP','Flexible Cord SJOOW','Welding Cable'], lo:80, hi:420 },
+      { cat:'Conduit',      pre:'CND', names:['PVC Conduit','EMT Conduit','Rigid Steel Conduit','Liquidtight Flex','PVC Elbow','EMT Coupling'], lo:8, hi:120 },
+      { cat:'Components',   pre:'CMP', names:['Circuit Breaker','Load Center Panel','Contactor','GFCI Outlet','Disconnect Switch','Surge Protector','Relay Module'], lo:9, hi:240 },
+      { cat:'Hardware',     pre:'HDW', names:['Connector Kit','Insulation Tape','Cable Ties','Wire Nuts','Strut Channel','Mounting Bracket','Cable Gland','Junction Box'], lo:4, hi:90 },
+      { cat:'Safety',       pre:'SAF', names:['Work Gloves','Safety Helmet','Safety Glasses','Hi-Vis Vest','Ear Plugs','Voltage Tester','Lockout Tagout Kit'], lo:6, hi:140 },
+      { cat:'Tools',        pre:'TLS', names:['Digital Multimeter','Wire Stripper','Cable Cutter','Crimping Tool','Torque Wrench','Conduit Bender','Fish Tape','Label Printer'], lo:18, hi:380 }
+    ];
+    var units=['each','per box','per 10 units','per 100m roll','per pack','per set','per 1000'];
+    var sizes=['#12','#10','#8','#6','#2','1/2"','3/4"','1"','20A','30A','40A','60A','150mm','300mm','Small','Medium','Large','Pro','Heavy-Duty'];
+    var seed=12345; var rng=function(){ seed=(seed*9301+49297)%233280; return seed/233280; };
+    for(var i=0;i<count;i++){
+      var g=groups[i%groups.length];
+      var nm=g.names[Math.floor(rng()*g.names.length)];
+      var sz=sizes[Math.floor(rng()*sizes.length)];
+      var price=Math.round((g.lo+rng()*(g.hi-g.lo))*100)/100;
+      var unit=units[Math.floor(rng()*units.length)];
+      CATALOG.push({
+        sku: g.pre+'-'+String(1000+i),
+        name: nm+' '+sz,
+        cat: g.cat,
+        unit: unit,
+        price: price,
+        icon: g.pre
+      });
+    }
+  }catch(e){ /* no-op: stress seed is optional */ }
+})();
+
 const DEPOSIT_RATE = 0.30; // 30% down
 const CURRENCY = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -51,6 +88,36 @@ function cartArray(s){
 }
 function subtotal(s){ return cartArray(s).reduce((t,i)=>t + i.price*i.qty, 0); }
 function depositOf(n){ return Math.round(n*DEPOSIT_RATE*100)/100; }
+
+/* ===== Mock product API =====
+ * Stands in for a real backend endpoint:
+ *   GET /products?q=&cat=&page=&pageSize=  ->  { items, total, page, pages }
+ * The filtering + pagination happen HERE (server-side), so the client only
+ * ever receives one page of rows — the pattern you'd use past ~1–2k items.
+ * Swap ProductAPI.search() for a fetch() call and the picker is unchanged. */
+const ProductAPI = (function(){
+  // simulate variable network latency so the loading state is real
+  function latency(){ return 140 + Math.floor(Math.random()*220); }
+  return {
+    search({ q = '', cat = 'All', page = 1, pageSize = 8 } = {}){
+      return new Promise(resolve => {
+        setTimeout(() => {
+          const needle = String(q).trim().toLowerCase();
+          const rows = CATALOG.filter(p => {
+            if(cat !== 'All' && p.cat !== cat) return false;
+            if(!needle) return true;
+            return (p.name + ' ' + p.sku + ' ' + p.cat).toLowerCase().includes(needle);
+          });
+          const total = rows.length;
+          const pages = Math.max(1, Math.ceil(total / pageSize));
+          const safe  = Math.min(Math.max(1, page), pages);
+          const start = (safe - 1) * pageSize;
+          resolve({ items: rows.slice(start, start + pageSize), total, page: safe, pages, pageSize });
+        }, latency());
+      });
+    }
+  };
+})();
 
 function genOrderId(){
   const t = String(Math.floor(performance.now())).slice(-4);

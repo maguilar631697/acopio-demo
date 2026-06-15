@@ -33,7 +33,17 @@
   <div class="steps" id="steps1"></div>
   <div class="sec-head"><h2>Build your order</h2><p id="orderCtr"></p></div>
   <div class="layout">
-    <div id="productGrid" class="grid products"></div>
+    <div class="catalog">
+      <div class="pick-toolbar">
+        <div class="search">
+          <span class="si">⌕</span>
+          <input id="prodSearch" type="search" placeholder="Search name or SKU…" autocomplete="off" oninput="onPickChange()">
+        </div>
+        <div id="catChips" class="chips"></div>
+      </div>
+      <div id="productGrid" class="grid products"></div>
+      <div id="pickPager" class="pager"></div>
+    </div>
     <aside class="panel">
       <h2>Your order</h2>
       <div id="cartLines"><div class="empty">No items yet — add products from the catalog.</div></div>
@@ -118,10 +128,70 @@ function centerName(){ const c=CENTERS.find(x=>x.id===S.center); return c?`${c.n
 function goOrder(){
   document.getElementById('steps1').innerHTML=stepsBar(1);
   document.getElementById('orderCtr').textContent='Picking up at '+centerName();
-  renderProducts(); renderCart(); show('v-order');
+  renderChips(); renderProducts(); renderCart(); show('v-order');
 }
-function renderProducts(){
-  document.getElementById('productGrid').innerHTML = CATALOG.map(p=>{
+const PAGE_SIZE = 8;
+const pick = { q:'', cat:'All', page:1 };
+// Filtering + pagination now happen in the mock backend (ProductAPI.search,
+// in app.js). The client only renders whatever page the server returns.
+
+function renderChips(){
+  const cats = ['All', ...Array.from(new Set(CATALOG.map(p=>p.cat)))];
+  document.getElementById('catChips').innerHTML = cats.map(c=>
+    `<button class="chip${c===pick.cat?' on':''}" onclick="setCat('${c.replace(/'/g,"\\'")}')">${c}</button>`
+  ).join('');
+}
+let pickReq = 0;        // request counter — guards against stale responses
+let pickDebounce = null; // debounce handle for the search box
+
+function setCat(c){ pick.cat=c; pick.page=1; renderChips(); loadProducts(); }
+function onPickChange(){
+  pick.q = document.getElementById('prodSearch').value;
+  pick.page = 1;
+  clearTimeout(pickDebounce);
+  pickDebounce = setTimeout(loadProducts, 250); // wait for typing to settle
+}
+function gotoPage(n){ pick.page=n; loadProducts(); document.getElementById('productGrid').scrollIntoView({behavior:'smooth',block:'start'}); }
+
+// Calls the mock backend, shows a loading state, and ignores out-of-order replies.
+async function loadProducts(){
+  const grid = document.getElementById('productGrid');
+  const req = ++pickReq;
+  grid.classList.add('loading');
+  grid.setAttribute('aria-busy','true');
+  grid.innerHTML = Array.from({length:PAGE_SIZE}).map(()=>`<div class="card skel"></div>`).join('');
+  document.getElementById('pickPager').innerHTML = '';
+
+  let resp;
+  try{
+    resp = await ProductAPI.search({ q:pick.q, cat:pick.cat, page:pick.page, pageSize:PAGE_SIZE });
+  }catch(e){
+    if(req !== pickReq) return;            // a newer request already took over
+    grid.classList.remove('loading'); grid.removeAttribute('aria-busy');
+    grid.innerHTML = `<div class="empty no-res">Couldn’t load products. <button class="link" onclick="loadProducts()">Retry</button></div>`;
+    return;
+  }
+  if(req !== pickReq) return;               // stale: a later keystroke/page won
+
+  grid.classList.remove('loading'); grid.removeAttribute('aria-busy');
+  pick.page = resp.page;
+  renderProductRows(resp);
+}
+
+// keep the old name working for callers that just want a refresh
+function renderProducts(){ loadProducts(); }
+
+function renderProductRows(resp){
+  const grid = document.getElementById('productGrid');
+  const pager = document.getElementById('pickPager');
+
+  if(!resp.items.length){
+    grid.innerHTML = `<div class="empty no-res">No products match “${pick.q||pick.cat}”.</div>`;
+    pager.innerHTML = '';
+    return;
+  }
+
+  grid.innerHTML = resp.items.map(p=>{
     const qty = S.items[p.sku]||0;
     return `<div class="card" style="cursor:default">
       <span class="sku">${p.sku}</span>
@@ -137,6 +207,27 @@ function renderProducts(){
       <button class="add-btn" onclick="bump('${p.sku}',1)">Add to order</button>
     </div>`;
   }).join('');
+
+  const start = (resp.page-1)*resp.pageSize;
+  if(resp.pages<=1){
+    pager.innerHTML = `<span class="pg-info">${resp.total} product${resp.total!==1?'s':''}</span>`;
+  } else {
+    // windowed page list: 1 … cur-1 cur cur+1 … last
+    const want = new Set([1,resp.pages,resp.page,resp.page-1,resp.page+1]);
+    const nums = [...want].filter(n=>n>=1&&n<=resp.pages).sort((a,b)=>a-b);
+    let btns='', prev=0;
+    nums.forEach(i=>{
+      if(i-prev>1) btns+=`<span class="pg-gap">…</span>`;
+      btns+=`<button class="pg${i===resp.page?' on':''}" onclick="gotoPage(${i})">${i}</button>`;
+      prev=i;
+    });
+    pager.innerHTML = `<span class="pg-info">${start+1}–${Math.min(start+resp.pageSize,resp.total)} of ${resp.total}</span>
+      <div class="pg-btns">
+        <button class="pg" onclick="gotoPage(${Math.max(1,resp.page-1)})" ${resp.page===1?'disabled':''}>‹</button>
+        ${btns}
+        <button class="pg" onclick="gotoPage(${Math.min(resp.pages,resp.page+1)})" ${resp.page===resp.pages?'disabled':''}>›</button>
+      </div>`;
+  }
 }
 function bump(sku,d){
   const cur = S.items[sku]||0;
